@@ -1,15 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
-
-	"golang.org/x/net/websocket"
+	"strings"
 )
 
 //check functions mei room reference se pass nahi kiya
 
 var room_list []room
-func init(){
+
+func init() {
 	room_list = []room{}
 }
 
@@ -23,40 +24,40 @@ type room struct {
 	sender       int
 	current_word string
 	token        string
-	rounds_left int
+	rounds_left  int
 }
 
-func newroom(ws websocket,user,tk string) {
+func newroom(ws websocket, user, tk string) {
 	temp := make([]byte, 100)
 	ws.read(temp)
 	rounds_left := strconv.Atoi(string(temp))
 	r := room{
-		clients:       []client{client{name:user , ws:ws }},
+		clients:      []client{client{name: user, ws: ws}},
 		broadcast:    make(chan string),
 		sender:       0,
 		current_word: "",
 		token:        tk,
-		rounds_left: rounds_left,
+		rounds_left:  rounds_left,
 	}
 	go game_loop(&r)
 	return r
 }
 
-func selectsyncdb(ws websocket, user string , token string) {
+func selectsyncdb(ws websocket, user string, token string) {
 	for i, r := range room_list {
 		if r.token == token {
-			r.clients = append(r.clients,client{name:user,ws:ws})
-			return &r,i
+			r.clients = append(r.clients, client{name: user, ws: ws})
+			return &r, i
 		}
 	}
-	return newroom(ws,user,token),0
+	return newroom(ws, user, token), 0
 }
 
 func left(i int, r room) {
 	room.clients = append(room.clients[:i], room.clients[i+1:]...)
 }
 
-func handl(ws websocket) {
+func wshandl(ws websocket) {
 	res1 := strings.Split(ws.LocalAddr().String(), "/")
 	if len(res1) < 5 {
 		ws.Close()
@@ -79,19 +80,19 @@ func handl(ws websocket) {
 
 	user := string(temp)
 	fmt.Println(token, user)
-	
-	r,i:=selectsyncdb(ws,user,token )
+
+	r, i := selectsyncdb(ws, user, token)
 
 	for {
-		if(i != r.sender ){
+		if i != r.sender {
 			temp := make([]byte, 100)
 			ws.Read(temp)
 			op := string(temp)
-			if op=="p_1"{        //point plus 1
-				broadcast("p_1_"+user,r)
+			if op == "p_1" { //point plus 1
+				broadcast("p_1_"+user, r)
 			}
-			if op=="close"{        //point plus 1
-				left(i,r)
+			if op == "close" { //point plus 1
+				left(i, r)
 				break
 			}
 		}
@@ -100,8 +101,4 @@ func handl(ws websocket) {
 
 	//sync waitgroup
 
-}
-
-func main {
-	websocket.NewClient()
 }
